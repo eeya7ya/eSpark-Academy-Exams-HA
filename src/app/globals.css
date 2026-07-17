@@ -1,0 +1,160 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────
+   eSpark palette — muted greys with cool blue-grey & sage accents.
+   Derived from: St. Pauls Blue, Arctic Grey, Minty Breeze, Tender Grey,
+   Band Stone and Classic White. Grey is the foundation; the primary→
+   accent pair forms the gradient used on icons, headings and buttons.
+   ────────────────────────────────────────────────────────────────── */
+
+:root,
+.dark {
+  --background: #1b1e20;
+  --foreground: #e9e4e0;
+  --primary: #5b7884;        /* St. Pauls Blue */
+  --primary-light: #93a3a4;  /* Arctic Grey */
+  --accent: #8a9b8d;         /* Minty Breeze */
+  --accent-light: #aebcab;
+  --surface: #232729;
+  --surface-light: #2d3234;
+  --border: #3a4143;
+  --glass-bg: rgba(35, 39, 41, 0.7);
+  --card-bg: rgba(35, 39, 41, 0.8);
+  --success: #7da384;
+  --danger: #c2554d;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-surface: var(--surface);
+  --color-surface-light: var(--surface-light);
+  --color-border: var(--border);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: white;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+  }
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, var(--primary-light), var(--accent-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass effect */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+/* Glow effects — soft blue-grey & sage, no neon */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(91,120,132, 0.3), 0 0 60px rgba(91,120,132, 0.12);
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px rgba(138,155,141, 0.3), 0 0 60px rgba(138,155,141, 0.12);
+}
+
+/* Animated gradient border */
+.gradient-border {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--primary), var(--accent), var(--primary));
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Shimmer loading effect */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 25%,
+    var(--surface-light) 50%,
+    var(--surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
