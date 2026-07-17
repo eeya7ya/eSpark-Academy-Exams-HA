@@ -14,14 +14,18 @@ export default function ResultsTab() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/results");
-      const data = await res.json();
+      const res = await fetch("/api/admin/results", {
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setResults(data.results);
         setError(null);
-      } else setError(data.error || "Failed to load results");
+      } else setError(data.error || `Failed to load results (HTTP ${res.status})`);
     } catch {
-      setError("Network error while loading results");
+      setError(
+        "Could not reach the server. Check the database configuration and retry."
+      );
     } finally {
       setLoading(false);
     }
@@ -83,8 +87,14 @@ export default function ResultsTab() {
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg bg-[#c2554d]/10 border border-[#c2554d]/20 text-[#c2554d] text-sm mb-4">
-          {error}
+        <div className="p-3 rounded-lg bg-[#c2554d]/10 border border-[#c2554d]/20 text-[#c2554d] text-sm mb-4 flex flex-wrap items-center justify-between gap-2">
+          <span className="flex-1 min-w-[200px]">{error}</span>
+          <button
+            onClick={load}
+            className="shrink-0 px-3 py-1.5 rounded-md bg-[#c2554d] text-white text-xs font-semibold hover:bg-[#a8463f] transition cursor-pointer"
+          >
+            Retry
+          </button>
         </div>
       )}
 

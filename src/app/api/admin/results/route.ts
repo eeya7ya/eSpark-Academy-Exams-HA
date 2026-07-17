@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
+import { getPrismaClient, describeDbError } from "@/lib/prisma";
 import { validateAdminSession } from "@/lib/auth";
 
 // GET /api/admin/results?examId=&studentId= - submitted attempts, newest first
@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const examId = request.nextUrl.searchParams.get("examId");
   const studentId = request.nextUrl.searchParams.get("studentId");
 
+  try {
   const attempts = await getPrismaClient().attempt.findMany({
     where: {
       submittedAt: { not: null },
@@ -55,4 +56,8 @@ export async function GET(request: NextRequest) {
       submittedAt: a.submittedAt,
     })),
   });
+  } catch (error) {
+    console.error("Load results error:", error);
+    return NextResponse.json({ error: describeDbError(error) }, { status: 500 });
+  }
 }

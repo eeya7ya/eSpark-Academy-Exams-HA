@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
+import { getPrismaClient, describeDbError } from "@/lib/prisma";
 import { validateAdminSession } from "@/lib/auth";
 import { hashPassword, generatePassword } from "@/lib/password";
 
@@ -9,26 +9,31 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const students = await getPrismaClient().student.findMany({
-    orderBy: { createdAt: "asc" },
-    select: {
-      id: true,
-      name: true,
-      username: true,
-      createdAt: true,
-      _count: { select: { attempts: true } },
-    },
-  });
+  try {
+    const students = await getPrismaClient().student.findMany({
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        name: true,
+        username: true,
+        createdAt: true,
+        _count: { select: { attempts: true } },
+      },
+    });
 
-  return NextResponse.json({
-    students: students.map((s) => ({
-      id: s.id,
-      name: s.name,
-      username: s.username,
-      createdAt: s.createdAt,
-      attemptCount: s._count.attempts,
-    })),
-  });
+    return NextResponse.json({
+      students: students.map((s) => ({
+        id: s.id,
+        name: s.name,
+        username: s.username,
+        createdAt: s.createdAt,
+        attemptCount: s._count.attempts,
+      })),
+    });
+  } catch (error) {
+    console.error("Load students error:", error);
+    return NextResponse.json({ error: describeDbError(error) }, { status: 500 });
+  }
 }
 
 // POST /api/admin/students - create student (password auto-generated if omitted)
