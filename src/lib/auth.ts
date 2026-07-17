@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { createHash } from "crypto";
 
 const ADMIN_COOKIE = "admin_session";
 const STUDENT_COOKIE = "student_session";
@@ -7,8 +8,10 @@ const SESSION_MAX_AGE = 60 * 60 * 24; // 24 hours in seconds
 function getSecret(): string {
   const secret = process.env.ADMIN_SESSION_SECRET;
   if (!secret) {
-    // Fallback: derive from admin password so it works without extra config
-    const pass = process.env.ADMIN_PASSWORD || "";
+    // Fallback: derive from the admin credential so it works without
+    // extra config (set ADMIN_SESSION_SECRET for a dedicated secret)
+    const pass =
+      process.env.ADMIN_PASSWORD || process.env.ADMIN_PASSWORD_HASH || "";
     return `espark_academy_session_${pass}_secret`;
   }
   return secret;
@@ -108,11 +111,15 @@ export function validateAdminCredentials(
   password: string
 ): boolean {
   const adminUser = process.env.ADMIN_USERNAME;
+  // Preferred: ADMIN_PASSWORD_HASH — SHA-256 hex digest (64 chars) of the
+  // password, so the plaintext never appears in environment variables.
+  // Fallback: plaintext ADMIN_PASSWORD.
+  const adminHash = process.env.ADMIN_PASSWORD_HASH?.trim().toLowerCase();
   const adminPass = process.env.ADMIN_PASSWORD;
 
-  if (!adminUser || !adminPass) {
+  if (!adminUser || (!adminHash && !adminPass)) {
     console.error(
-      "ADMIN_USERNAME and ADMIN_PASSWORD environment variables must be set."
+      "ADMIN_USERNAME and ADMIN_PASSWORD_HASH (or ADMIN_PASSWORD) environment variables must be set."
     );
     return false;
   }
@@ -120,9 +127,18 @@ export function validateAdminCredentials(
   const userMatch =
     username.length === adminUser.length &&
     timingSafeEqual(username, adminUser);
-  const passMatch =
-    password.length === adminPass.length &&
-    timingSafeEqual(password, adminPass);
+
+  let passMatch: boolean;
+  if (adminHash) {
+    const candidate = createHash("sha256").update(password).digest("hex");
+    passMatch =
+      candidate.length === adminHash.length &&
+      timingSafeEqual(candidate, adminHash);
+  } else {
+    passMatch =
+      password.length === adminPass!.length &&
+      timingSafeEqual(password, adminPass!);
+  }
 
   return userMatch && passMatch;
 }
