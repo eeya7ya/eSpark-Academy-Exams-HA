@@ -31,14 +31,18 @@ export default function StudentsTab() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/students");
-      const data = await res.json();
+      const res = await fetch("/api/admin/students", {
+        signal: AbortSignal.timeout(15000),
+      });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setStudents(data.students);
         setError(null);
-      } else setError(data.error || "Failed to load students");
+      } else setError(data.error || `Failed to load students (HTTP ${res.status})`);
     } catch {
-      setError("Network error while loading students");
+      setError(
+        "Could not reach the server. Check the database configuration and retry."
+      );
     } finally {
       setLoading(false);
     }
@@ -144,8 +148,18 @@ export default function StudentsTab() {
       </div>
 
       {error && (
-        <div className="p-3 rounded-lg bg-[#c2554d]/10 border border-[#c2554d]/20 text-[#c2554d] text-sm mb-4">
-          {error}
+        <div className="p-3 rounded-lg bg-[#c2554d]/10 border border-[#c2554d]/20 text-[#c2554d] text-sm mb-4 flex flex-wrap items-center justify-between gap-2">
+          <span className="flex-1 min-w-[200px]">{error}</span>
+          <button
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              load();
+            }}
+            className="shrink-0 px-3 py-1.5 rounded-md bg-[#c2554d] text-white text-xs font-semibold hover:bg-[#a8463f] transition cursor-pointer"
+          >
+            Retry
+          </button>
         </div>
       )}
 
