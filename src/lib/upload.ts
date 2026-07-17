@@ -3,7 +3,14 @@ import path from "path";
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || "26214400"); // 25MB
 
-const useVercelBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
+// Storage backend priority: Cloudflare R2 → Vercel Blob → local filesystem
+export const useR2 = !!(
+  process.env.R2_ACCOUNT_ID &&
+  process.env.R2_ACCESS_KEY_ID &&
+  process.env.R2_SECRET_ACCESS_KEY &&
+  process.env.R2_BUCKET
+);
+const useVercelBlob = !useR2 && !!process.env.BLOB_READ_WRITE_TOKEN;
 const isServerless =
   !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 
@@ -32,11 +39,84 @@ function getUploadDir(category: string): string {
   return path.join(process.cwd(), "public", "uploads", category);
 }
 
-// Always serve local files through the API route — Next.js production
-// servers don't serve files added to public/ after the build.
-function getUploadUrl(category: string, filename: string): string {
-  return `/api/uploads/${category}/${filename}`;
+// ── Cloudflare R2 (S3-compatible) backend ───────────────────────────
+
+interface S3LikeClient {
+  send(cmd: unknown): Promise<unknown>;
 }
+
+let cachedR2Client: S3LikeClient | null = null;
+
+export async function getR2Client(): Promise<S3LikeClient> {
+  if (cachedR2Client) return cachedR2Client;
+  const { S3Client } = await import("@aws-sdk/client-s3");
+  cachedR2Client = new S3Client({
+    region: "auto",
+    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    },
+  }) as unknown as S3LikeClient;
+  return cachedR2Client;
+}
+
+function r2PublicUrl(key: string): string {
+  const base = process.env.R2_PUBLIC_URL;
+  if (base) {
+    return `${base.replace(/\/$/, "")}/${key}`;
+  }
+  // Private bucket: proxy through our own API route
+  return `/api/uploads/${key.replace(/^uploads\//, "")}`;
+}
+
+async function saveToR2(
+  file: File,
+  key: string,
+  mimetype: string
+): Promise<string> {
+  const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+  const client = await getR2Client();
+  const body = Buffer.from(await file.arrayBuffer());
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET!,
+      Key: key,
+      Body: body,
+      ContentType: mimetype,
+      ContentLength: body.length,
+    })
+  );
+
+  return r2PublicUrl(key);
+}
+
+async function deleteFromR2(url: string): Promise<void> {
+  const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+  const client = await getR2Client();
+
+  // Recover the key from either a public URL or a proxied path
+  let key: string | null = null;
+  const publicBase = process.env.R2_PUBLIC_URL;
+  if (publicBase && url.startsWith(publicBase)) {
+    key = url.slice(publicBase.replace(/\/$/, "").length + 1);
+  } else if (url.startsWith("/api/uploads/")) {
+    key = "uploads/" + url.replace("/api/uploads/", "");
+  } else if (url.startsWith("uploads/")) {
+    key = url;
+  }
+  if (!key || key.includes("..") || key.includes("\0")) return;
+
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: process.env.R2_BUCKET!,
+      Key: key,
+    })
+  );
+}
+
+// ── Public API ──────────────────────────────────────────────────────
 
 export async function saveUploadedFile(
   file: File,
@@ -62,11 +142,14 @@ export async function saveUploadedFile(
 
   const mimetype = EXT_TO_MIME[ext] || "application/octet-stream";
   const uniqueName = `${Date.now()}-${safeName}`;
+  const key = `uploads/${category}/${uniqueName}`;
 
   let filepath: string;
-  if (useVercelBlob) {
+  if (useR2) {
+    filepath = await saveToR2(file, key, mimetype);
+  } else if (useVercelBlob) {
     const { put } = await import("@vercel/blob");
-    const blob = await put(`uploads/${category}/${uniqueName}`, file, {
+    const blob = await put(key, file, {
       access: "public",
       addRandomSuffix: false,
     });
@@ -76,7 +159,9 @@ export async function saveUploadedFile(
     await mkdir(dir, { recursive: true });
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(path.join(dir, uniqueName), buffer);
-    filepath = getUploadUrl(category, uniqueName);
+    // Served through the API route — Next.js production servers don't
+    // serve files added to public/ after the build.
+    filepath = `/api/uploads/${category}/${uniqueName}`;
   }
 
   return { filename: file.name, filepath, mimetype };
@@ -84,6 +169,17 @@ export async function saveUploadedFile(
 
 export async function deleteUploadedFile(filepath: string): Promise<void> {
   try {
+    const publicBase = process.env.R2_PUBLIC_URL;
+    const isR2Url =
+      useR2 &&
+      ((publicBase && filepath.startsWith(publicBase)) ||
+        filepath.startsWith("/api/uploads/"));
+
+    if (isR2Url) {
+      await deleteFromR2(filepath);
+      return;
+    }
+
     if (filepath.startsWith("http")) {
       if (!useVercelBlob) return;
       const { del } = await import("@vercel/blob");

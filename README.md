@@ -49,11 +49,11 @@ questions, and whether to reveal correct answers after submission.
    ```
 
 2. Copy `.env.example` to `.env` and fill in:
-   - `POSTGRES_URL` + `DATABASE_URL_UNPOOLED` — any PostgreSQL database
-     (Neon / Supabase / Vercel Postgres).
+   - `POSTGRES_URL` (pooled) + `DATABASE_URL_UNPOOLED` (direct) — from
+     your Neon serverless Postgres project.
    - `ADMIN_USERNAME` / `ADMIN_PASSWORD` — your dashboard login.
-   - `BLOB_READ_WRITE_TOKEN` — optional; needed on Vercel for certificate
-     uploads to persist (add a Vercel Blob store).
+   - `R2_*` — Cloudflare R2 credentials for certificate storage
+     (optional locally; files fall back to the local filesystem in dev).
 
 3. Create the database tables:
 
@@ -69,13 +69,24 @@ questions, and whether to reveal correct answers after submission.
 
 Open `http://localhost:3000/admin` to start creating courses.
 
-## Deploying to Vercel
+## Deploying to Vercel (Neon + Cloudflare R2)
 
 1. Import this repo in Vercel.
-2. Add the environment variables above (Storage → Postgres + Blob will
-   set `POSTGRES_URL` and `BLOB_READ_WRITE_TOKEN` for you).
-3. Run `npm run db:push` once against the production database (or run it
-   locally with the production `DATABASE_URL_UNPOOLED`).
+2. **Database (Neon):** add the Neon integration (Storage → Neon) or
+   create a Neon project manually, then set:
+   - `POSTGRES_URL` — the **pooled** connection string
+     (`…-pooler.…neon.tech`, `sslmode=require`); used by the app at
+     runtime, safe for serverless functions.
+   - `DATABASE_URL_UNPOOLED` — the **direct** connection string; used
+     only by `npm run db:push` / migrations.
+3. **Storage (Cloudflare R2):** create a bucket and an R2 API token with
+   *Object Read & Write*, then set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`,
+   `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`. Optionally set `R2_PUBLIC_URL`
+   if the bucket has a public/custom domain — otherwise the bucket can
+   stay private and files are proxied through `/api/uploads`.
+4. **Admin login:** set `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+5. Create the tables once: run `npm run db:push` locally with the
+   production `DATABASE_URL_UNPOOLED` in `.env`.
 
 ## Typical flow
 
