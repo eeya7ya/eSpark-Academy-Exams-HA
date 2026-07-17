@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Course {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lectures    Lecture[]
+}
+
+model Lecture {
+  id              String   @id @default(cuid())
+  courseId        String
+  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  sortOrder       Int      @default(0)
+  certificateName String?
+  certificatePath String?
+  certificateMime String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  exam            Exam?
+
+  @@index([courseId])
+}
+
+model Exam {
+  id               String    @id @default(cuid())
+  lectureId        String    @unique
+  lecture          Lecture   @relation(fields: [lectureId], references: [id], onDelete: Cascade)
+  token            String    @unique @default(cuid())
+  title            String
+  durationMinutes  Int       @default(0)
+  passingPercent   Int       @default(60)
+  maxAttempts      Int       @default(1)
+  shuffleQuestions Boolean   @default(false)
+  showAnswers      Boolean   @default(true)
+  isPublished      Boolean   @default(false)
+  questions        Json      @default("[]")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  attempts         Attempt[]
+}
+
+model Student {
+  id           String    @id @default(cuid())
+  name         String
+  username     String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  attempts     Attempt[]
+}
+
+model Attempt {
+  id          String    @id @default(cuid())
+  examId      String
+  exam        Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answers     Json      @default("{}")
+  score       Float     @default(0)
+  maxScore    Float     @default(0)
+  percent     Float     @default(0)
+  passed      Boolean   @default(false)
+  startedAt   DateTime  @default(now())
+  submittedAt DateTime?
+
+  @@index([examId])
+  @@index([studentId])
+}
