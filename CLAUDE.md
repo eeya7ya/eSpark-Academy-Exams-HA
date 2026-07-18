@@ -140,8 +140,8 @@ title lines, keep everything else. Design spec (A4 landscape, 297×210mm):
   the SAME level: Date line (left) · **seal** (center) · signature (right):
   *Eng. Yahya Khaled Fraj · Instructor · Certified KNX Partner · eSpark
   Academy*.
-- Seal = double ring with the **curve mark** (`espark-mark.png`) inside —
-  no star, no text.
+- Center of the bottom row = the **curve mark** (`espark-mark.png`) standing
+  alone, ~21mm tall — **no rings/circles around it**, no star, no text.
 - Footer tagline: "Your partner for professional growth and deep knowledge".
 
 ### Render pipeline (IMPORTANT)
