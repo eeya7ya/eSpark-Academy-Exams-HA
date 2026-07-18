@@ -5,10 +5,6 @@ import { GraduationCap, Link2, Award, BarChart3 } from "lucide-react";
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16 relative overflow-hidden">
-      {/* Soft background glows */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-[var(--primary)]/10 blur-3xl" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-[var(--accent)]/10 blur-3xl" />
-
       <div className="relative w-full max-w-2xl text-center">
         <Image
           src="/espark-logo-on-dark.png"

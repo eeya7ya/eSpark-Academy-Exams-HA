@@ -105,3 +105,17 @@ ALTER TABLE "Attempt" ADD CONSTRAINT "Attempt_examId_fkey" FOREIGN KEY ("examId"
 -- AddForeignKey
 ALTER TABLE "Attempt" ADD CONSTRAINT "Attempt_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- CreateTable (durable file storage used on Vercel when no R2/Blob is configured)
+CREATE TABLE IF NOT EXISTS "StoredFile" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "mimetype" TEXT NOT NULL,
+    "data" BYTEA NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StoredFile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX IF NOT EXISTS "StoredFile_key_key" ON "StoredFile"("key");

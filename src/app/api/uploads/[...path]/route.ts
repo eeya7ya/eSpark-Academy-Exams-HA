@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
-import { useR2, getR2Client } from "@/lib/upload";
+import { useR2, getR2Client, getStoredFile } from "@/lib/upload";
 
 const MIME_TYPES: Record<string, string> = {
   ".pdf": "application/pdf",
@@ -54,6 +54,18 @@ export async function GET(
     } catch {
       // try next root
     }
+  }
+
+  // Postgres-stored files (serverless deployments without R2/Blob)
+  const stored = await getStoredFile(relative);
+  if (stored) {
+    return new NextResponse(new Uint8Array(stored.data), {
+      headers: {
+        "Content-Type": stored.mimetype || mime,
+        "Cache-Control": "public, max-age=3600",
+        "X-Content-Type-Options": "nosniff",
+      },
+    });
   }
 
   return NextResponse.json({ error: "File not found" }, { status: 404 });

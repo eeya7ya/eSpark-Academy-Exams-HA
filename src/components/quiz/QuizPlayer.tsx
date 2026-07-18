@@ -188,11 +188,7 @@ export default function QuizPlayer({ token }: { token: string }) {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Ambient background glows */}
-      <div className="pointer-events-none absolute -top-40 -left-40 w-[28rem] h-[28rem] rounded-full bg-[var(--primary)]/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-40 -right-40 w-[28rem] h-[28rem] rounded-full bg-[var(--accent)]/10 blur-3xl" />
-
-      <div className="relative max-w-2xl mx-auto px-4 py-8 sm:py-12">
+      <div className="relative max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto px-4 py-8 sm:py-12">
         {/* Brand header */}
         <div className="flex items-center justify-between mb-8">
           <Image

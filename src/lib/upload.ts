@@ -1,9 +1,12 @@
 import { writeFile, unlink, mkdir } from "fs/promises";
 import path from "path";
+import { getPrismaClient } from "@/lib/prisma";
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || "26214400"); // 25MB
 
-// Storage backend priority: Cloudflare R2 → Vercel Blob → local filesystem
+// Storage backend priority:
+// Cloudflare R2 → Vercel Blob → Postgres (serverless without R2/Blob,
+// because /tmp is ephemeral there) → local filesystem (dev)
 export const useR2 = !!(
   process.env.R2_ACCOUNT_ID &&
   process.env.R2_ACCESS_KEY_ID &&
@@ -13,6 +16,7 @@ export const useR2 = !!(
 const useVercelBlob = !useR2 && !!process.env.BLOB_READ_WRITE_TOKEN;
 const isServerless =
   !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+const useDbStorage = isServerless && !useR2 && !useVercelBlob;
 
 export type UploadCategory = "certificates" | "question-images";
 
@@ -116,6 +120,61 @@ async function deleteFromR2(url: string): Promise<void> {
   );
 }
 
+// ── Postgres storage (fallback when serverless without R2/Blob) ─────
+
+// Creates the table on demand so deployments that predate this model
+// (or ones set up via the SQL editor) don't need a manual migration.
+async function ensureStoredFileTable(): Promise<void> {
+  const prisma = getPrismaClient();
+  await prisma.$executeRawUnsafe(
+    `CREATE TABLE IF NOT EXISTS "StoredFile" (
+      "id" TEXT NOT NULL,
+      "key" TEXT NOT NULL,
+      "mimetype" TEXT NOT NULL,
+      "data" BYTEA NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "StoredFile_pkey" PRIMARY KEY ("id")
+    )`
+  );
+  await prisma.$executeRawUnsafe(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "StoredFile_key_key" ON "StoredFile"("key")`
+  );
+}
+
+async function saveToDb(
+  key: string,
+  data: Buffer,
+  mimetype: string
+): Promise<void> {
+  await ensureStoredFileTable();
+  const bytes = new Uint8Array(data);
+  await getPrismaClient().storedFile.upsert({
+    where: { key },
+    create: { key, mimetype, data: bytes },
+    update: { mimetype, data: bytes },
+  });
+}
+
+export async function getStoredFile(
+  key: string
+): Promise<{ data: Uint8Array; mimetype: string } | null> {
+  try {
+    const file = await getPrismaClient().storedFile.findUnique({
+      where: { key },
+    });
+    if (!file) return null;
+    return { data: file.data as Uint8Array, mimetype: file.mimetype };
+  } catch {
+    return null; // table may not exist yet
+  }
+}
+
+async function deleteFromDb(key: string): Promise<void> {
+  await getPrismaClient()
+    .storedFile.delete({ where: { key } })
+    .catch(() => {});
+}
+
 // ── Public API ──────────────────────────────────────────────────────
 
 export async function saveUploadedFile(
@@ -154,6 +213,10 @@ export async function saveUploadedFile(
       addRandomSuffix: false,
     });
     filepath = blob.url;
+  } else if (useDbStorage) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await saveToDb(`${category}/${uniqueName}`, buffer, mimetype);
+    filepath = `/api/uploads/${category}/${uniqueName}`;
   } else {
     const dir = getUploadDir(category);
     await mkdir(dir, { recursive: true });
@@ -187,6 +250,7 @@ export async function deleteUploadedFile(filepath: string): Promise<void> {
     } else if (filepath.startsWith("/api/uploads/")) {
       const relativePath = filepath.replace("/api/uploads/", "");
       if (relativePath.includes("..") || relativePath.includes("\0")) return;
+      await deleteFromDb(relativePath);
       const roots = [
         path.join("/tmp", "uploads"),
         path.join(process.cwd(), "public", "uploads"),
