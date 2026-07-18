@@ -14,11 +14,6 @@
     position:relative; overflow:hidden;
     -webkit-print-color-adjust:exact; print-color-adjust:exact;
   }
-  /* ambient glows */
-  .glow{position:absolute;border-radius:50%;filter:blur(70px)}
-  .g1{width:420px;height:420px;top:-140px;left:-140px;background:rgba(91,120,132,.22)}
-  .g2{width:420px;height:420px;bottom:-140px;right:-140px;background:rgba(138,155,141,.22)}
-  .g3{width:300px;height:300px;top:40%;left:42%;background:rgba(91,120,132,.08)}
   /* frame */
   .frame{position:absolute;inset:9mm;border:1px solid rgba(147,163,164,.45)}
   .frame2{position:absolute;inset:11mm;border:2px solid transparent;
@@ -47,15 +42,15 @@
   .sigline{border-bottom:1px solid rgba(147,163,164,.55);height:9mm;margin-bottom:2mm}
   .sig .who{font-size:12px;font-weight:700;color:#e9e4e0}
   .sig .role{font-size:9.5px;color:#93a3a4;letter-spacing:.5px;margin-top:1mm;line-height:1.5}
-  .seal{width:26mm;height:26mm;display:flex;
-    align-items:center;justify-content:center;margin-top:-7mm}
-  .seal .mark{height:21mm;width:auto}
+  .seal{width:26mm;height:26mm;border-radius:50%;border:1.5px solid #8a9b8d;display:flex;
+    align-items:center;justify-content:center;position:relative;background:rgba(138,155,141,.07);margin-top:-7mm}
+  .seal::before{content:"";position:absolute;inset:1.8mm;border-radius:50%;border:1px solid rgba(138,155,141,.5)}
+  .seal .mark{height:17mm;width:auto}
   .seal .txt{font-size:6.3px;letter-spacing:1.6px;color:#93a3a4;text-transform:uppercase;margin-top:1.2mm}
   .footer{margin-top:5mm;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:rgba(147,163,164,.6)}
 </style>
 </head>
 <body>
-  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
   <div class="frame"></div><div class="frame2"></div>
   <div class="corner c1"></div><div class="corner c2"></div><div class="corner c3"></div><div class="corner c4"></div>
   <div class="content">

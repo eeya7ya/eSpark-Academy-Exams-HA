@@ -128,9 +128,10 @@ where the explanations shine).
 Template: **`docs/certificate-template.html`** — edit the lecture/session
 title lines, keep everything else. Design spec (A4 landscape, 297×210mm):
 
-- Dark charcoal `#1b1e20` background with two soft corner glows
-  (blue-grey and sage), thin outer frame, animatedless **gradient double
-  border** (`#5b7884 → #8a9b8d`) and four corner ticks.
+- **Plain dark charcoal `#1b1e20` background — NO glow circles.** Blurred
+  radial glows look fine on screens but print/export as visible light
+  circles, so never add them to certificates. Thin outer frame, **gradient
+  double border** (`#5b7884 → #8a9b8d`) and four corner ticks.
 - Top: the full eSpark-Academy logo (transparent version), ~19mm tall.
 - Serif (Georgia) headline `CERTIFICATE OF COMPLETION`, letterspaced.
 - "This certificate is proudly presented to" + **blank student-name line**
@@ -140,8 +141,8 @@ title lines, keep everything else. Design spec (A4 landscape, 297×210mm):
   the SAME level: Date line (left) · **seal** (center) · signature (right):
   *Eng. Yahya Khaled Fraj · Instructor · Certified KNX Partner · eSpark
   Academy*.
-- Center of the bottom row = the **curve mark** (`espark-mark.png`) standing
-  alone, ~21mm tall — **no rings/circles around it**, no star, no text.
+- Seal = double ring (26mm, `#8a9b8d`) with the **curve mark**
+  (`espark-mark.png`, ~17mm) inside — no star, no text.
 - Footer tagline: "Your partner for professional growth and deep knowledge".
 
 ### Render pipeline (IMPORTANT)
