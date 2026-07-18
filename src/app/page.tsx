@@ -9,10 +9,10 @@ export default function HomePage() {
         <Image
           src="/espark-logo-on-dark.png"
           alt="eSpark"
-          width={220}
-          height={70}
+          width={480}
+          height={180}
           priority
-          className="mx-auto mb-8 h-auto w-48 sm:w-56"
+          className="mx-auto mb-8 h-auto w-64 sm:w-80"
         />
 
         <h1 className="text-3xl sm:text-5xl font-bold tracking-tight mb-4">

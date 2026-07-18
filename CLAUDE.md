@@ -136,8 +136,13 @@ title lines, keep everything else. Design spec (A4 landscape, 297×210mm):
   double border** (`#5b7884 → #8a9b8d`) and four corner ticks.
 - Top: the full eSpark-Academy logo (transparent version), ~19mm tall.
 - Serif (Georgia) headline `CERTIFICATE OF COMPLETION`, letterspaced.
-- "This certificate is proudly presented to" + **blank student-name line**
-  (the platform serves one file to all passing students).
+- "This certificate is proudly presented to" + **blank student-name line**.
+  Keep the line blank in the template: the platform **personalizes each
+  download** — `/api/quiz/<token>/certificate` draws the student's full
+  name (Times italic, cream) on the name line and the pass date on the
+  Date line via pdf-lib. Template coordinates used by the endpoint:
+  name baseline at `H*0.517` centered, date at `H*0.232` centered on
+  `W*0.184` — keep those lines in place when editing the template.
 - Lecture title in gradient text + course/session subtitle.
 - Bottom row — **`align-items: flex-start`** so both signature lines sit at
   the SAME level: Date line (left) · **seal** (center) · signature (right):

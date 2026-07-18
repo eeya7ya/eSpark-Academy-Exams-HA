@@ -169,6 +169,74 @@ export async function getStoredFile(
   }
 }
 
+// Resolve a stored filepath (any backend) to raw bytes — used by the
+// certificate personalization endpoint.
+export async function getUploadBytes(
+  filepath: string
+): Promise<{ data: Uint8Array; mimetype: string } | null> {
+  if (filepath.startsWith("/api/uploads/")) {
+    const key = filepath.replace("/api/uploads/", "");
+    if (key.includes("..") || key.includes("\0")) return null;
+
+    const stored = await getStoredFile(key);
+    if (stored) return stored;
+
+    const { readFile } = await import("fs/promises");
+    const roots = [
+      path.join("/tmp", "uploads"),
+      path.join(process.cwd(), "public", "uploads"),
+    ];
+    for (const root of roots) {
+      try {
+        const data = await readFile(path.join(root, key));
+        return {
+          data: new Uint8Array(data),
+          mimetype: EXT_TO_MIME[path.extname(key).toLowerCase()] || "",
+        };
+      } catch {
+        // try next
+      }
+    }
+
+    if (useR2) {
+      try {
+        const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+        const client = await getR2Client();
+        const result = (await client.send(
+          new GetObjectCommand({
+            Bucket: process.env.R2_BUCKET!,
+            Key: `uploads/${key}`,
+          })
+        )) as { Body?: { transformToByteArray(): Promise<Uint8Array> }; ContentType?: string };
+        if (result.Body) {
+          return {
+            data: await result.Body.transformToByteArray(),
+            mimetype: result.ContentType || "",
+          };
+        }
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  if (filepath.startsWith("http")) {
+    try {
+      const res = await fetch(filepath);
+      if (!res.ok) return null;
+      return {
+        data: new Uint8Array(await res.arrayBuffer()),
+        mimetype: res.headers.get("content-type") || "",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
 async function deleteFromDb(key: string): Promise<void> {
   await getPrismaClient()
     .storedFile.delete({ where: { key } })
