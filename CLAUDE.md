@@ -28,7 +28,9 @@ Palette (from the main eSpark site):
 | success / danger | `#7da384` / `#c2554d` | pass / fail |
 
 Signature styles: glass cards (`backdrop-filter: blur`), gradient text
-(`primary-light → accent-light`), soft background glows, rounded-2xl corners.
+(`primary-light → accent-light`), rounded-2xl corners. **Never add blurred
+background glow circles** — not in app pages and not in certificates (the
+instructor explicitly dislikes them; they also print as visible circles).
 
 ### Logo assets (in `public/`)
 
@@ -168,7 +170,9 @@ PDF/PNG/JPG/WEBP; stored in R2).
   vars; students are DB rows with scrypt-hashed passwords.
 - DB: `POSTGRES_URL` (Neon pooled) at runtime; `DATABASE_URL_UNPOOLED` for
   `npm run db:push`. Table DDL also in `prisma/create-tables.sql`.
-- Storage: R2 (`R2_*` env vars) → Vercel Blob → local, in that priority.
+- Storage priority: R2 (`R2_*` env vars) → Vercel Blob → **Postgres**
+  (`StoredFile` table — automatic fallback on Vercel when neither is
+  configured, since serverless `/tmp` is ephemeral) → local disk (dev).
 - After changing branding assets, check ALL of: `espark-logo-on-dark.png`,
   `espark-mark.png`, `espark-icon.png`, `favicon.ico`, and the certificate
   template.

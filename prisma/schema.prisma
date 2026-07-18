@@ -61,6 +61,16 @@ model Student {
   attempts     Attempt[]
 }
 
+// Durable file storage used on Vercel when no R2/Blob is configured —
+// serverless /tmp is ephemeral, so uploads would otherwise vanish.
+model StoredFile {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  mimetype  String
+  data      Bytes
+  createdAt DateTime @default(now())
+}
+
 model Attempt {
   id          String    @id @default(cuid())
   examId      String

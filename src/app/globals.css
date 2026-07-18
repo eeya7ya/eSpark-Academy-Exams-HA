@@ -148,12 +148,14 @@
   100% { background-position: 200% 0; }
 }
 
+/* Used on the light admin theme — keep the colors light so loading
+   placeholders don't flash as dark blocks. */
 .animate-shimmer {
   background: linear-gradient(
     90deg,
-    var(--surface) 25%,
-    var(--surface-light) 50%,
-    var(--surface) 75%
+    #f0ebe4 25%,
+    #faf7f2 50%,
+    #f0ebe4 75%
   );
   background-size: 200% 100%;
   animation: shimmer 2s ease-in-out infinite;
