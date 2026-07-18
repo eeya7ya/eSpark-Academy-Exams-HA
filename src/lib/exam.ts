@@ -358,11 +358,21 @@ function gradeQuestion(q: Question, answer: unknown): number {
 // Correction sheet sent back after submission when the exam allows it.
 export function buildReview(questions: Question[], answers: AnswerMap) {
   return questions.map((q) => {
+    // Grade each question server-side so the review UI shows the SAME
+    // verdict the score is based on — never a naive string comparison
+    // (which mislabels fillblank alternatives, partial multi, etc.).
+    const fraction = gradeQuestion(q, answers[q.id]);
+    const earned = Math.round(fraction * q.points * 100) / 100;
+    const status: "correct" | "partial" | "wrong" =
+      fraction >= 1 ? "correct" : fraction > 0 ? "partial" : "wrong";
+
     const base = {
       id: q.id,
       type: q.type,
       prompt: q.prompt,
       points: q.points,
+      earned,
+      status,
       explanation: q.explanation || null,
       yourAnswer: answers[q.id] ?? null,
     };

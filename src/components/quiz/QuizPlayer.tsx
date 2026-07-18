@@ -51,6 +51,8 @@ interface ReviewItem {
   type: string;
   prompt: string;
   points: number;
+  earned: number;
+  status: "correct" | "partial" | "wrong";
   explanation: string | null;
   yourAnswer: unknown;
   options?: string[];
@@ -1035,31 +1037,39 @@ function ResultView({
 function ReviewCard({ item, index }: { item: ReviewItem; index: number }) {
   const yourAnswerText = formatAnswer(item, item.yourAnswer);
   const correctText = formatCorrect(item);
-  const isCorrect = yourAnswerText === correctText;
+  // Trust the server's verdict — the same grade the score is based on.
+  const status = item.status;
+  const answerColor =
+    status === "correct"
+      ? "text-[var(--success)]"
+      : status === "partial"
+        ? "text-[#d9a441]"
+        : "text-[var(--danger)]";
 
   return (
     <div className="glass rounded-xl p-5">
       <div className="flex items-start gap-3">
-        {isCorrect ? (
+        {status === "correct" ? (
           <CheckCircle2 className="w-4 h-4 text-[var(--success)] mt-0.5 shrink-0" />
+        ) : status === "partial" ? (
+          <CheckCircle2 className="w-4 h-4 text-[#d9a441] mt-0.5 shrink-0" />
         ) : (
           <XCircle className="w-4 h-4 text-[var(--danger)] mt-0.5 shrink-0" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium mb-2">
-            {index + 1}. {item.prompt}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm font-medium mb-2">
+              {index + 1}. {item.prompt}
+            </p>
+            <span className="shrink-0 text-[11px] font-semibold text-[var(--primary-light)] whitespace-nowrap">
+              {item.earned}/{item.points}
+            </span>
+          </div>
           <p className="text-xs text-[var(--primary-light)]">
             Your answer:{" "}
-            <span
-              className={
-                isCorrect ? "text-[var(--success)]" : "text-[var(--danger)]"
-              }
-            >
-              {yourAnswerText || "—"}
-            </span>
+            <span className={answerColor}>{yourAnswerText || "—"}</span>
           </p>
-          {!isCorrect && (
+          {status !== "correct" && (
             <p className="text-xs text-[var(--primary-light)] mt-1">
               Correct answer:{" "}
               <span className="text-[var(--success)]">{correctText}</span>
