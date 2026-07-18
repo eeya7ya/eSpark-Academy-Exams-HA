@@ -188,15 +188,15 @@ export default function QuizPlayer({ token }: { token: string }) {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      <div className="relative max-w-2xl lg:max-w-3xl xl:max-w-4xl mx-auto px-4 py-8 sm:py-12">
+      <div className="relative max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-4 py-8 sm:py-12">
         {/* Brand header */}
         <div className="flex items-center justify-between mb-8">
           <Image
             src="/espark-logo-on-dark.png"
-            alt="eSpark"
-            width={130}
-            height={40}
-            className="h-auto w-28"
+            alt="eSpark Academy"
+            width={480}
+            height={180}
+            className="h-auto w-48 sm:w-64 lg:w-80"
             priority
           />
           {status?.authenticated && status.student && phase !== "playing" && (
@@ -249,6 +249,7 @@ export default function QuizPlayer({ token }: { token: string }) {
               key="intro"
               status={status}
               error={error}
+              certificateHref={`/api/quiz/${token}/certificate`}
               onStart={start}
             />
           )}
@@ -269,7 +270,12 @@ export default function QuizPlayer({ token }: { token: string }) {
           )}
 
           {phase === "result" && result && status && (
-            <ResultView key="result" result={result} status={status} />
+            <ResultView
+              key="result"
+              result={result}
+              status={status}
+              certificateHref={`/api/quiz/${token}/certificate`}
+            />
           )}
         </AnimatePresence>
       </div>
@@ -343,7 +349,7 @@ function StudentLogin({
         <p className="text-xs uppercase tracking-widest text-[var(--primary-light)] mb-2">
           {exam.courseName} · {exam.lectureTitle}
         </p>
-        <h1 className="text-2xl sm:text-3xl font-bold">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
           <span className="gradient-text">{exam.title}</span>
         </h1>
       </div>
@@ -416,10 +422,12 @@ function StudentLogin({
 function ExamIntro({
   status,
   error,
+  certificateHref,
   onStart,
 }: {
   status: QuizStatus;
   error: string | null;
+  certificateHref: string;
   onStart: () => void;
 }) {
   const { exam } = status;
@@ -437,7 +445,7 @@ function ExamIntro({
         <p className="text-xs uppercase tracking-widest text-[var(--primary-light)] mb-2">
           {exam.courseName} · {exam.lectureTitle}
         </p>
-        <h1 className="text-2xl sm:text-3xl font-bold">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">
           <span className="gradient-text">{exam.title}</span>
         </h1>
         {status.student && (
@@ -484,7 +492,7 @@ function ExamIntro({
 
         {status.certificateUrl && (
           <a
-            href={status.certificateUrl}
+            href={certificateHref}
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-center gap-2 w-full py-3 mb-4 rounded-lg bg-[var(--accent)]/15 border border-[var(--accent)]/30 hover:bg-[var(--accent)]/25 text-[var(--accent-light)] font-semibold text-sm transition"
@@ -528,8 +536,8 @@ function ExamIntro({
 
 function InfoStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="bg-[var(--surface)] rounded-xl px-3 py-3 border border-[var(--border)]">
-      <div className="text-base font-bold">{value}</div>
+    <div className="bg-[var(--surface)] rounded-xl px-3 py-3 lg:py-4 border border-[var(--border)]">
+      <div className="text-base lg:text-xl font-bold">{value}</div>
       <div className="text-[10px] uppercase tracking-wide text-[var(--primary-light)] mt-0.5">
         {label}
       </div>
@@ -948,9 +956,11 @@ function QuestionInput({
 function ResultView({
   result,
   status,
+  certificateHref,
 }: {
   result: SubmitResult;
   status: QuizStatus;
+  certificateHref: string;
 }) {
   return (
     <motion.div
@@ -990,7 +1000,7 @@ function ResultView({
 
         {result.certificateUrl && (
           <a
-            href={result.certificateUrl}
+            href={certificateHref}
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 mt-7 px-6 py-3 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent)]/85 text-white font-bold text-sm transition glow-accent"
