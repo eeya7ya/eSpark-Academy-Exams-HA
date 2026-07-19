@@ -72,8 +72,15 @@ Question content rules — **these define the eSpark exam style**:
 4. Include one or two **deliberate traps** per exam — plausible distractors
    that catch students who didn't pay attention (e.g. 232 vs 256 devices;
    a distractor that is true of a *different* technology).
-5. **Use all six question types** across the exam: `mcq`, `multi`
+5. **Use the six auto-graded types** across the exam: `mcq`, `multi`
    (partial credit), `truefalse`, `fillblank`, `ordering`, `matching`.
+   A **seventh type `upload`** exists for open tasks (research, circuit
+   design): the student uploads file(s) (PDF/images/docs); it earns full
+   points on submission and the instructor reviews the actual files in the
+   **Results** tab (click the eye icon → download links). Files are stored
+   with the same priority chain (R2 → Blob → Postgres → local). Put what a
+   good answer looks like in the `explanation`. Example upload question:
+   `{"type":"upload","prompt":"…","points":2,"maxFiles":2,"explanation":"…"}`.
 6. Size: **15–20 questions, ~20–25 points** for a lecture exam.
    Points: 1 for mcq/truefalse/fillblank, 2 for multi/ordering, 2–3 for
    matching.
