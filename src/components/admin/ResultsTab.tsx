@@ -1,8 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Trash2, BarChart3, RefreshCw } from "lucide-react";
+import {
+  Trash2,
+  BarChart3,
+  RefreshCw,
+  Eye,
+  Paperclip,
+  Download,
+} from "lucide-react";
 import { type ResultRow, inputCls, btnSecondary } from "./types";
+import { Modal } from "./CoursesTab";
+
+interface AttemptItem {
+  id: string;
+  type: string;
+  prompt: string;
+  points: number;
+  earned: number;
+  answer: unknown;
+  options?: string[];
+  lefts?: string[];
+  files?: { filename: string; filepath: string; mimetype: string; size?: number }[];
+}
+
+interface AttemptDetail {
+  id: string;
+  student: { name: string; username: string };
+  examTitle: string;
+  lectureTitle: string;
+  courseName: string;
+  score: number;
+  maxScore: number;
+  percent: number;
+  passed: boolean;
+  submittedAt: string;
+  items: AttemptItem[];
+}
 
 export default function ResultsTab() {
   const [results, setResults] = useState<ResultRow[]>([]);
@@ -10,6 +44,20 @@ export default function ResultsTab() {
   const [error, setError] = useState<string | null>(null);
   const [courseFilter, setCourseFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [detail, setDetail] = useState<AttemptDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openDetail = async (id: string) => {
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/admin/results/${id}`);
+      const data = await res.json();
+      if (res.ok) setDetail(data.attempt);
+      else alert(data.error || "Failed to load attempt");
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -184,13 +232,22 @@ export default function ResultsTab() {
                       {new Date(r.submittedAt).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => removeAttempt(r)}
-                        className="p-2 rounded-lg text-[#c2554d] hover:bg-[#c2554d]/10 transition cursor-pointer"
-                        title="Delete attempt (allows retake)"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => openDetail(r.id)}
+                          className="p-2 rounded-lg text-[#76716a] hover:bg-[#f4f0ec] transition cursor-pointer"
+                          title="View answers & uploaded files"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => removeAttempt(r)}
+                          className="p-2 rounded-lg text-[#c2554d] hover:bg-[#c2554d]/10 transition cursor-pointer"
+                          title="Delete attempt (allows retake)"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -199,6 +256,105 @@ export default function ResultsTab() {
           </div>
         </div>
       )}
+
+      {detailLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-7 h-7 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+        </div>
+      )}
+
+      {detail && (
+        <AttemptDetailModal detail={detail} onClose={() => setDetail(null)} />
+      )}
     </div>
   );
+}
+
+function AttemptDetailModal({
+  detail,
+  onClose,
+}: {
+  detail: AttemptDetail;
+  onClose: () => void;
+}) {
+  return (
+    <Modal
+      title={`${detail.student.name} · ${detail.percent}% (${detail.passed ? "Passed" : "Failed"})`}
+      onClose={onClose}
+    >
+      <div className="max-h-[70vh] overflow-y-auto -mx-1 px-1 space-y-3">
+        <p className="text-xs text-[#9b958c]">
+          {detail.courseName} · {detail.lectureTitle} — {detail.score}/
+          {detail.maxScore} points
+        </p>
+        {detail.items.map((item, i) => (
+          <div
+            key={item.id}
+            className="bg-[#faf8f5] border border-[#e6e1da] rounded-xl p-3.5"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-semibold text-[#2b2f30]">
+                {i + 1}. {item.prompt}
+              </p>
+              <span className="shrink-0 text-[11px] font-semibold text-[#76716a]">
+                {item.earned}/{item.points}
+              </span>
+            </div>
+            {item.type === "upload" ? (
+              <div className="mt-2 space-y-1.5">
+                {item.files && item.files.length > 0 ? (
+                  item.files.map((f, j) => (
+                    <a
+                      key={j}
+                      href={f.filepath}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white border border-[#e6e1da] hover:border-[#5b7884] text-xs text-[#4c626a] transition"
+                    >
+                      <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                      <span className="flex-1 truncate">{f.filename}</span>
+                      <Download className="w-3.5 h-3.5 shrink-0" />
+                    </a>
+                  ))
+                ) : (
+                  <p className="text-[11px] text-[#c2554d]">No file submitted</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-[#76716a] mt-1.5">
+                {formatAdminAnswer(item)}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+function formatAdminAnswer(item: AttemptItem): string {
+  const a = item.answer;
+  if (a === null || a === undefined) return "— no answer —";
+  switch (item.type) {
+    case "mcq":
+      return typeof a === "number" ? (item.options?.[a] ?? String(a)) : String(a);
+    case "multi":
+      return Array.isArray(a)
+        ? (a as number[]).map((i) => item.options?.[i] ?? i).join(", ")
+        : String(a);
+    case "truefalse":
+      return a === true ? "True" : a === false ? "False" : String(a);
+    case "fillblank":
+      return String(a);
+    case "ordering":
+      return Array.isArray(a) ? (a as string[]).join(" → ") : String(a);
+    case "matching":
+      return Array.isArray(a)
+        ? (a as (string | null)[])
+            .map((r, i) => `${item.lefts?.[i] ?? i + 1}: ${r ?? "—"}`)
+            .join(" · ")
+        : String(a);
+    default:
+      return String(a);
+  }
 }

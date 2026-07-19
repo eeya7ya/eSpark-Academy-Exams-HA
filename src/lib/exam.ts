@@ -9,7 +9,16 @@ export type QuestionType =
   | "truefalse"
   | "fillblank"  // short text answer
   | "ordering"   // arrange items in the correct order
-  | "matching";  // match left items to right items
+  | "matching"   // match left items to right items
+  | "upload";    // open task — student uploads file(s), instructor reviews
+
+// A file the student uploaded as an answer (metadata only; bytes live in storage)
+export interface UploadedAnswerFile {
+  filename: string;
+  filepath: string;
+  mimetype: string;
+  size?: number;
+}
 
 export interface BaseQuestion {
   id: string;
@@ -53,13 +62,21 @@ export interface MatchingQuestion extends BaseQuestion {
   pairs: { left: string; right: string }[];
 }
 
+export interface UploadQuestion extends BaseQuestion {
+  type: "upload";
+  // Extensions the student may upload (defaults to pdf + images).
+  accept?: string[];
+  maxFiles?: number; // default 3
+}
+
 export type Question =
   | McqQuestion
   | MultiQuestion
   | TrueFalseQuestion
   | FillBlankQuestion
   | OrderingQuestion
-  | MatchingQuestion;
+  | MatchingQuestion
+  | UploadQuestion;
 
 // What the student's browser receives — no correct answers.
 export type StudentQuestion = {
@@ -72,6 +89,8 @@ export type StudentQuestion = {
   items?: string[];    // ordering (shuffled)
   lefts?: string[];    // matching
   rights?: string[];   // matching (shuffled)
+  accept?: string[];   // upload
+  maxFiles?: number;   // upload
 };
 
 // Student answer shapes, keyed by question id:
@@ -208,9 +227,27 @@ export function validateQuestions(input: unknown): {
         questions.push({ ...base, type: "matching", pairs: cleaned });
         break;
       }
+      case "upload": {
+        const accept =
+          Array.isArray(q.accept) &&
+          q.accept.every((a) => typeof a === "string" && a.trim())
+            ? (q.accept as string[]).map((a) => a.trim().toLowerCase())
+            : undefined;
+        const maxFiles =
+          typeof q.maxFiles === "number" && q.maxFiles >= 1 && q.maxFiles <= 10
+            ? Math.round(q.maxFiles)
+            : undefined;
+        questions.push({
+          ...base,
+          type: "upload",
+          ...(accept ? { accept } : {}),
+          ...(maxFiles ? { maxFiles } : {}),
+        });
+        break;
+      }
       default:
         return {
-          error: `${label}: unknown type "${String(q.type)}". Allowed: mcq, multi, truefalse, fillblank, ordering, matching`,
+          error: `${label}: unknown type "${String(q.type)}". Allowed: mcq, multi, truefalse, fillblank, ordering, matching, upload`,
         };
     }
   }
@@ -254,11 +291,25 @@ export function sanitizeForStudent(
           lefts: q.pairs.map((p) => p.left),
           rights: shuffled(q.pairs.map((p) => p.right)),
         };
+      case "upload":
+        return {
+          ...base,
+          accept: q.accept ?? DEFAULT_UPLOAD_ACCEPT,
+          maxFiles: q.maxFiles ?? 3,
+        };
       default:
         return base;
     }
   });
 }
+
+export const DEFAULT_UPLOAD_ACCEPT = [
+  ".pdf",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+];
 
 // ── Grading ─────────────────────────────────────────────────────────
 
@@ -350,6 +401,12 @@ function gradeQuestion(q: Question, answer: unknown): number {
       return hits / q.pairs.length;
     }
 
+    case "upload":
+      // Open task graded on submission: uploading at least one file earns
+      // full credit; the instructor reviews the actual work in Results and
+      // can delete the attempt to require a redo.
+      return Array.isArray(answer) && answer.length > 0 ? 1 : 0;
+
     default:
       return 0;
   }
@@ -393,6 +450,10 @@ export function buildReview(questions: Question[], answers: AnswerMap) {
           lefts: q.pairs.map((p) => p.left),
           correct: q.pairs.map((p) => p.right),
         };
+      case "upload":
+        // Open task — no single correct answer to reveal; the review UI
+        // renders the submitted files and treats "correct" as "submitted".
+        return { ...base, correct: null };
     }
   });
 }

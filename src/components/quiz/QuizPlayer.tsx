@@ -15,6 +15,8 @@ import {
   ArrowDown,
   Send,
   GraduationCap,
+  Upload,
+  Paperclip,
 } from "lucide-react";
 import type { StudentQuestion } from "@/lib/exam";
 
@@ -259,6 +261,7 @@ export default function QuizPlayer({ token }: { token: string }) {
           {phase === "playing" && (
             <PlayingView
               key="playing"
+              token={token}
               questions={questions}
               answers={answers}
               setAnswers={setAnswers}
@@ -294,6 +297,8 @@ function isUnanswered(q: StudentQuestion, answer: unknown): boolean {
       return typeof answer !== "string" || !answer.trim();
     case "matching":
       return !Array.isArray(answer) || answer.some((a) => a === null);
+    case "upload":
+      return !Array.isArray(answer) || answer.length === 0;
     case "ordering":
       return false; // always has an order
     default:
@@ -550,6 +555,7 @@ function InfoStat({ label, value }: { label: string; value: string }) {
 // ── Playing ─────────────────────────────────────────────────────────
 
 function PlayingView({
+  token,
   questions,
   answers,
   setAnswers,
@@ -560,6 +566,7 @@ function PlayingView({
   error,
   onSubmit,
 }: {
+  token: string;
   questions: StudentQuestion[];
   answers: Record<string, unknown>;
   setAnswers: React.Dispatch<React.SetStateAction<Record<string, unknown>>>;
@@ -633,7 +640,7 @@ function PlayingView({
             />
           )}
 
-          <QuestionInput q={q} answer={answers[q.id]} onAnswer={setAnswer} />
+          <QuestionInput q={q} answer={answers[q.id]} onAnswer={setAnswer} token={token} />
         </motion.div>
       </AnimatePresence>
 
@@ -752,10 +759,12 @@ function QuestionInput({
   q,
   answer,
   onAnswer,
+  token,
 }: {
   q: StudentQuestion;
   answer: unknown;
   onAnswer: (value: unknown) => void;
+  token: string;
 }) {
   switch (q.type) {
     case "mcq":
@@ -948,9 +957,143 @@ function QuestionInput({
       );
     }
 
+    case "upload":
+      return <UploadInput q={q} answer={answer} onAnswer={onAnswer} token={token} />;
+
     default:
       return null;
   }
+}
+
+// Upload question — files upload immediately; the answer is the metadata list.
+function UploadInput({
+  q,
+  answer,
+  onAnswer,
+  token,
+}: {
+  q: StudentQuestion;
+  answer: unknown;
+  onAnswer: (value: unknown) => void;
+  token: string;
+}) {
+  const files = Array.isArray(answer)
+    ? (answer as { filename: string; filepath: string; size?: number }[])
+    : [];
+  const [uploading, setUploading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const maxFiles = q.maxFiles ?? 3;
+  const accept = (q.accept ?? []).join(",");
+
+  const handleFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setErr(null);
+    setUploading(true);
+    try {
+      const added: typeof files = [];
+      for (const file of Array.from(fileList)) {
+        if (files.length + added.length >= maxFiles) {
+          setErr(`You can upload at most ${maxFiles} file(s) here.`);
+          break;
+        }
+        const fd = new FormData();
+        fd.set("file", file);
+        const res = await fetch(`/api/quiz/${token}/upload`, {
+          method: "POST",
+          body: fd,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setErr(data.error || `Could not upload ${file.name}`);
+          break;
+        }
+        added.push(data.file);
+      }
+      if (added.length) onAnswer([...files, ...added]);
+    } catch {
+      setErr("Upload failed — please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = (i: number) => {
+    onAnswer(files.filter((_, j) => j !== i));
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] text-[var(--primary-light)] -mt-1">
+        Do the task, then upload your file(s) — {q.accept?.join(", ") || "PDF or image"}.
+        Up to {maxFiles}.
+      </p>
+
+      {files.length > 0 && (
+        <div className="space-y-2">
+          {files.map((f, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/10 text-sm"
+            >
+              <Paperclip className="w-4 h-4 text-[var(--accent-light)] shrink-0" />
+              <span className="flex-1 truncate">{f.filename}</span>
+              {typeof f.size === "number" && (
+                <span className="text-[11px] text-[var(--primary-light)] shrink-0">
+                  {(f.size / 1024).toFixed(0)} KB
+                </span>
+              )}
+              <button
+                onClick={() => removeFile(i)}
+                className="p-1 rounded-md text-[var(--danger)] hover:bg-[var(--danger)]/10 transition cursor-pointer shrink-0"
+                aria-label="Remove file"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {files.length < maxFiles && (
+        <label
+          className={`flex flex-col items-center justify-center gap-2 px-4 py-8 rounded-xl border-2 border-dashed cursor-pointer transition ${
+            uploading
+              ? "border-[var(--border)] opacity-60 pointer-events-none"
+              : "border-[var(--border)] hover:border-[var(--primary)] hover:bg-[var(--surface)]"
+          }`}
+        >
+          {uploading ? (
+            <>
+              <div className="w-5 h-5 border-2 border-[var(--primary)]/30 border-t-[var(--primary)] rounded-full animate-spin" />
+              <span className="text-xs text-[var(--primary-light)]">Uploading…</span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-6 h-6 text-[var(--primary-light)]" />
+              <span className="text-sm font-medium">Choose file to upload</span>
+              <span className="text-[11px] text-[var(--primary-light)]">
+                {q.accept?.join(" · ") || "PDF, PNG, JPG"}
+              </span>
+            </>
+          )}
+          <input
+            type="file"
+            accept={accept}
+            multiple={maxFiles > 1}
+            className="hidden"
+            onChange={(e) => {
+              handleFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+      )}
+
+      {err && (
+        <p className="text-xs text-[var(--danger)]">{err}</p>
+      )}
+    </div>
+  );
 }
 
 // ── Result screen ────────────────────────────────────────────────────
@@ -1046,6 +1189,8 @@ function ReviewCard({ item, index }: { item: ReviewItem; index: number }) {
         ? "text-[#d9a441]"
         : "text-[var(--danger)]";
 
+  const isUpload = item.type === "upload";
+
   return (
     <div className="glass rounded-xl p-5">
       <div className="flex items-start gap-3">
@@ -1065,15 +1210,35 @@ function ReviewCard({ item, index }: { item: ReviewItem; index: number }) {
               {item.earned}/{item.points}
             </span>
           </div>
-          <p className="text-xs text-[var(--primary-light)]">
-            Your answer:{" "}
-            <span className={answerColor}>{yourAnswerText || "—"}</span>
-          </p>
-          {status !== "correct" && (
-            <p className="text-xs text-[var(--primary-light)] mt-1">
-              Correct answer:{" "}
-              <span className="text-[var(--success)]">{correctText}</span>
+          {isUpload ? (
+            <p className="text-xs text-[var(--primary-light)]">
+              {status === "correct" ? (
+                <>
+                  Submitted:{" "}
+                  <span className="text-[var(--success)]">
+                    {yourAnswerText || "file(s)"}
+                  </span>{" "}
+                  — your instructor will review it.
+                </>
+              ) : (
+                <span className="text-[var(--danger)]">
+                  No file submitted for this task.
+                </span>
+              )}
             </p>
+          ) : (
+            <>
+              <p className="text-xs text-[var(--primary-light)]">
+                Your answer:{" "}
+                <span className={answerColor}>{yourAnswerText || "—"}</span>
+              </p>
+              {status !== "correct" && (
+                <p className="text-xs text-[var(--primary-light)] mt-1">
+                  Correct answer:{" "}
+                  <span className="text-[var(--success)]">{correctText}</span>
+                </p>
+              )}
+            </>
           )}
           {item.explanation && (
             <p className="text-xs text-[var(--primary-light)]/80 mt-2 italic">
@@ -1110,6 +1275,12 @@ function formatAnswer(item: ReviewItem, answer: unknown): string {
         ? (answer as (string | null)[])
             .map((r, i) => `${item.lefts?.[i] ?? i + 1}: ${r ?? "—"}`)
             .join(" · ")
+        : "";
+    case "upload":
+      return Array.isArray(answer)
+        ? (answer as { filename: string }[])
+            .map((f) => f.filename)
+            .join(", ")
         : "";
     default:
       return String(answer);

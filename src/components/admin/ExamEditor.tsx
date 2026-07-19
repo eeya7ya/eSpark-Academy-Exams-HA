@@ -17,6 +17,7 @@ import {
   Type,
   ArrowUpDown,
   Shuffle,
+  FileUp,
 } from "lucide-react";
 import type { Question, QuestionType } from "@/lib/exam";
 import { type LectureNode, inputCls, btnPrimary, btnSecondary, btnDanger } from "./types";
@@ -32,6 +33,7 @@ const QUESTION_TYPES: {
   { type: "fillblank", label: "Fill in the blank", icon: Type },
   { type: "ordering", label: "Put in order", icon: ArrowUpDown },
   { type: "matching", label: "Matching", icon: Shuffle },
+  { type: "upload", label: "Upload task", icon: FileUp },
 ];
 
 const TEMPLATE: Question[] = [
@@ -194,6 +196,9 @@ export default function ExamEditor({
             { left: "", right: "" },
           ],
         };
+        break;
+      case "upload":
+        q = { ...base, type, maxFiles: 3 };
         break;
     }
     setExam((prev) =>
@@ -889,6 +894,34 @@ function TypeFields({
           >
             <Plus className="w-3.5 h-3.5" /> Add pair
           </button>
+        </div>
+      );
+
+    case "upload":
+      return (
+        <div className="space-y-2">
+          <p className="text-[11px] text-[#9b958c]">
+            Open task — the student does the work and uploads file(s) (PDF,
+            images, docs). Full points are awarded on submission; you review
+            the actual files in the Results tab. Write what a good answer looks
+            like in the Explanation below — it&apos;s shown after submission.
+          </p>
+          <label className="flex items-center gap-2 text-xs font-medium text-[#76716a]">
+            Max files:
+            <input
+              type="number"
+              min={1}
+              max={10}
+              value={question.maxFiles ?? 3}
+              onChange={(e) =>
+                onChange({
+                  ...question,
+                  maxFiles: Math.max(1, Math.min(10, parseInt(e.target.value) || 3)),
+                })
+              }
+              className={inputCls + " !w-20 !py-1.5 !px-2 text-center"}
+            />
+          </label>
         </div>
       );
 

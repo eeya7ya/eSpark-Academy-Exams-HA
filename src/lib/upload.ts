@@ -18,11 +18,16 @@ const isServerless =
   !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
 const useDbStorage = isServerless && !useR2 && !useVercelBlob;
 
-export type UploadCategory = "certificates" | "question-images";
+export type UploadCategory = "certificates" | "question-images" | "submissions";
 
 const ALLOWED_EXTENSIONS: Record<UploadCategory, string[]> = {
   certificates: [".pdf", ".png", ".jpg", ".jpeg", ".webp"],
   "question-images": [".png", ".jpg", ".jpeg", ".webp"],
+  // Student answer uploads — documents and images they produce for open tasks.
+  submissions: [
+    ".pdf", ".png", ".jpg", ".jpeg", ".webp",
+    ".doc", ".docx", ".txt", ".zip",
+  ],
 };
 
 const EXT_TO_MIME: Record<string, string> = {
@@ -31,6 +36,10 @@ const EXT_TO_MIME: Record<string, string> = {
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".txt": "text/plain",
+  ".zip": "application/zip",
 };
 
 function sanitiseFilename(name: string): string {
